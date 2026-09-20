@@ -23,3 +23,7 @@ rust/overflow-core/target/
 
 # Local documentation backups
 .doc-backups/
+
+# Overflow local audit data
+.overflow/
+audit/*.jsonl
