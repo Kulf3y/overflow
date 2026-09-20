@@ -1,0 +1,8 @@
+[package]
+name = "overflow-core"
+version = "0.1.0"
+edition = "2021"
+description = "Overflow core engine"
+
+[dependencies]
+regex = "1"
