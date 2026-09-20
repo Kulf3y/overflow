@@ -2,14 +2,14 @@ import argparse
 import json
 
 from overflow import __version__
-from overflow.privacy import redact_emails
+from overflow.privacy import redact_text
 from overflow.policy import load_policy, validate_policy
 
 
 def handle_check(args):
-    report = redact_emails(args.text)
-    print("emails_found:", report.emails_found)
+    report = redact_text(args.text)
     print("redacted:", report.output)
+    print("counts:", json.dumps(report.counts, indent=2, sort_keys=True))
 
 
 def handle_policy(args, parser):
@@ -49,7 +49,7 @@ def main():
 
     check_parser = subparsers.add_parser(
         "check",
-        help="Check text for simple email PII"
+        help="Check text for privacy-sensitive data"
     )
     check_parser.add_argument("text")
 
