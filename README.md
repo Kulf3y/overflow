@@ -1,25 +1,48 @@
 # Overflow
 
-Overflow is an open-source AI governance and optimization middleware project.
+Overflow is an open-source AI governance and optimization middleware.
 
-It is designed to sit between applications and AI providers or models.
+It sits between applications and AI providers to help control privacy,
+security, cost, routing, and auditability.
 
-## Core goals
+## Core capabilities
 
 - Privacy-first request handling
-- PII and secret reduction
+- PII and secret redaction
+- Prompt injection detection
+- Policy-driven governance
 - Token and cost optimization
-- Secure provider routing
-- Auditability
-- Governance assistance for European organizations
+- Provider abstraction and routing
+- Tamper-evident audit logging
+- Local HTTP gateway and dashboard
+- Docker deployment
 
-## Important principles
+## Quick start
 
-- Secure by default
-- Fail closed when critical policies cannot be enforced
-- Do not store raw prompts by default
-- Keep humans in the loop for important decisions
-- Remain provider-agnostic
+Run the gateway and dashboard:
+
+```powershell
+powershell -File scripts\open_dashboard.ps1
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8080/dashboard
+```
+
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Pipeline](docs/pipeline.md)
+- [Privacy engine](docs/privacy.md)
+- [Security engine](docs/security-engine.md)
+- [Audit system](docs/audit.md)
+- [Providers](docs/providers.md)
+- [Dashboard](docs/dashboard.md)
+- [Deployment](docs/deployment.md)
+- [Automation](docs/automation.md)
+- [Project status](docs/project-status.md)
 
 ## Status
 
@@ -29,8 +52,12 @@ Early development.
 
 See [SECURITY.md](SECURITY.md).
 
-## Legal
+## Contributing
 
-See [LEGAL.md](LEGAL.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Legal disclaimer
 
 Overflow is a technical tool and does not provide legal advice.
+
+See [LEGAL.md](LEGAL.md).
