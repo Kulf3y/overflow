@@ -6,6 +6,7 @@ from overflow.privacy import redact_text
 from overflow.policy import load_policy, validate_policy
 from overflow.security import scan_text as security_scan_text
 from overflow.audit import AuditChain, default_audit_path, verify_audit_file
+from overflow.gateway import serve as serve_gateway
 
 
 def handle_check(args):
@@ -80,6 +81,13 @@ def handle_policy(args, parser):
         parser.print_help()
 
 
+def handle_gateway(args):
+    if args.host != "127.0.0.1" and args.host != "localhost":
+        print("Warning: binding to a non-local host can expose the gateway.")
+
+    serve_gateway(host=args.host, port=args.port)
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="overflow",
@@ -149,6 +157,13 @@ def main():
     )
     show_parser.add_argument("path")
 
+    gateway_parser = subparsers.add_parser(
+        "gateway",
+        help="Run the local Overflow gateway"
+    )
+    gateway_parser.add_argument("--host", default="127.0.0.1")
+    gateway_parser.add_argument("--port", type=int, default=8080)
+
     args = parser.parse_args()
 
     if args.command == "check":
@@ -159,6 +174,8 @@ def main():
         handle_audit(args, audit_parser)
     elif args.command == "policy":
         handle_policy(args, policy_parser)
+    elif args.command == "gateway":
+        handle_gateway(args)
     else:
         parser.print_help()
 
