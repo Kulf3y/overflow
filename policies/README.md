@@ -1,10 +1,20 @@
 # Policies
 
-This folder will contain YAML policies for Overflow.
+This folder contains Overflow policy files.
 
-Planned policies:
+Overflow currently uses JSON policies because Python can read JSON without extra dependencies.
 
-- eu_default.yaml
-- eu_strict.yaml
-- high_risk.yaml
-- internal_only.yaml
+YAML support is planned for a later phase.
+
+## Current policies
+
+- `eu_default.json`
+- `eu_strict.json`
+
+## Validate policies
+
+If Python is installed, run:
+
+```powershell
+powershell -File scripts\check_policy.ps1
+```

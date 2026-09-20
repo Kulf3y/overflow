@@ -1,0 +1,22 @@
+{
+  "privacy": {
+    "redact_pii": true,
+    "redact_secrets": true
+  },
+  "security": {
+    "block_prompt_injection": true,
+    "block_jailbreak_attempts": true
+  },
+  "routing": {
+    "allow_external_providers": false,
+    "fallback": "deny",
+    "allowed_regions": [
+      "EU"
+    ]
+  },
+  "audit": {
+    "enabled": true,
+    "store_raw_prompts": false,
+    "store_raw_responses": false
+  }
+}
