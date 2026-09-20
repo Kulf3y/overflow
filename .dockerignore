@@ -1,0 +1,7 @@
+.git
+.doc-backups
+.overflow
+.venv
+__pycache__
+*.pyc
+rust/overflow-core/target

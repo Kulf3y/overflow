@@ -5,6 +5,7 @@ from overflow.optimizer import optimize_text
 from overflow.pipeline import process_text
 from overflow.policy import validate_policy
 from overflow.privacy import redact_text
+from overflow.providers import PROVIDER_NAMES
 from overflow.security import scan_text
 
 
@@ -18,6 +19,11 @@ def route_request(method, path, payload=None):
     if method == "GET" and path == "/v1/health":
         return 200, {
             "status": "ok"
+        }
+
+    if method == "GET" and path == "/v1/providers":
+        return 200, {
+            "providers": PROVIDER_NAMES
         }
 
     if method == "POST" and path == "/v1/check":
@@ -81,11 +87,16 @@ def route_request(method, path, payload=None):
 
         policy = payload.get("policy")
         optimize = payload.get("optimize", True)
+        provider_name = payload.get("provider", "mock")
+
+        if not isinstance(provider_name, str):
+            return 400, {"error": "provider must be a string"}
 
         result = process_text(
             text,
             policy=policy,
             optimize=bool(optimize),
+            provider_name=provider_name,
             audit_enabled=False
         )
 

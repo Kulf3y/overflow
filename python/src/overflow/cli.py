@@ -40,6 +40,7 @@ def handle_optimize(args):
 def handle_chat(args):
     result = process_text(
         args.text,
+        provider_name=args.provider,
         optimize=not args.no_optimize,
         audit_enabled=True
     )
@@ -154,9 +155,10 @@ def main():
 
     chat_parser = subparsers.add_parser(
         "chat",
-        help="Run the full Overflow pipeline with a mock provider"
+        help="Run the full Overflow pipeline"
     )
     chat_parser.add_argument("text")
+    chat_parser.add_argument("--provider", default="mock")
     chat_parser.add_argument("--no-optimize", action="store_true")
 
     audit_parser = subparsers.add_parser(
