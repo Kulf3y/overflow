@@ -10,9 +10,10 @@ build/
 # Rust
 rust/overflow-core/target/
 
-# Environment
+# Environment and secrets
 .env
 .env.local
+*.key
 
 # Logs
 *.log
@@ -21,9 +22,7 @@ rust/overflow-core/target/
 .idea/
 .vscode/
 
-# Local documentation backups
+# Local data
 .doc-backups/
-
-# Overflow local audit data
 .overflow/
 audit/*.jsonl

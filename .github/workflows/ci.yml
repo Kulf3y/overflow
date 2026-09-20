@@ -3,25 +3,23 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  python-tests:
+  tests:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Run Python tests
-        run: |
-          export PYTHONPATH=python/src
-          python -m unittest discover -s python/tests -p "test_*.py"
+      - name: Install dependencies
+        run: pip install -e python
+
+      - name: Run tests
+        run: python -m unittest discover -s python/tests -p "test_*.py"
 
       - name: Validate policies
         run: |
-          export PYTHONPATH=python/src
           python -m overflow.cli policy validate policies/eu_default.json
           python -m overflow.cli policy validate policies/eu_strict.json

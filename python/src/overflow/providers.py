@@ -1,9 +1,10 @@
 import json
-import os
 import urllib.request
 from dataclasses import dataclass, field
 
-PROVIDER_NAMES = ["mock", "openai_compatible"]
+from overflow.config import get_provider_config, mask_secret
+
+PROVIDER_NAMES = ["mock", "openai", "mistral", "ollama", "openai_compatible"]
 
 
 class ProviderError(Exception):
@@ -24,7 +25,6 @@ class MockProvider:
 
     def complete(self, text):
         preview = text.strip().replace("\n", " ")
-
         if len(preview) > 80:
             preview = preview[:80]
 
@@ -37,47 +37,47 @@ class MockProvider:
 
 
 class OpenAICompatibleProvider:
-    name = "openai_compatible"
-
-    def __init__(self, base_url=None, api_key=None, model=None):
-        self.base_url = base_url or os.environ.get("OVERFLOW_PROVIDER_BASE_URL", "")
-        self.api_key = api_key or os.environ.get("OVERFLOW_PROVIDER_API_KEY", "")
-        self.model = model or os.environ.get("OVERFLOW_PROVIDER_MODEL", "")
+    def __init__(self, provider_name="openai_compatible"):
+        self.config = get_provider_config(provider_name)
+        self.name = self.config.name
+        self.model = self.config.model
 
     def complete(self, text):
-        if not self.base_url or not self.model:
-            raise ProviderError("OpenAI-compatible provider requires base_url and model.")
+        if not self.config.base_url or not self.config.model:
+            raise ProviderError(
+                f"Provider {self.name} requires base_url and model. "
+                "Set OVERFLOW_PROVIDER_BASE_URL and OVERFLOW_PROVIDER_MODEL."
+            )
 
-        url = self.base_url.rstrip("/") + "/chat/completions"
+        url = self.config.base_url.rstrip("/") + "/chat/completions"
 
         payload = {
-            "model": self.model,
+            "model": self.config.model,
             "messages": [
-                {
-                    "role": "user",
-                    "content": text
-                }
+                {"role": "user", "content": text}
             ]
         }
 
-        headers = {
-            "Content-Type": "application/json"
-        }
+        headers = {"Content-Type": "application/json"}
 
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+        if self.config.api_key:
+            headers["Authorization"] = f"Bearer {self.config.api_key}"
 
         data = json.dumps(payload).encode("utf-8")
-        request = urllib.request.Request(url, data=data, headers=headers, method="POST")
+        request = urllib.request.Request(
+            url, data=data, headers=headers, method="POST"
+        )
 
         try:
             with urllib.request.urlopen(request, timeout=60) as response:
                 body = json.loads(response.read().decode("utf-8"))
         except Exception as exc:
-            raise ProviderError(f"Provider request failed: {exc}") from exc
+            safe_key = mask_secret(self.config.api_key)
+            raise ProviderError(
+                f"Provider request failed (key={safe_key}): {exc}"
+            ) from exc
 
         choices = body.get("choices", [])
-
         if not choices:
             raise ProviderError("Provider returned no choices.")
 
@@ -87,10 +87,8 @@ class OpenAICompatibleProvider:
         return ProviderResult(
             text=content,
             provider=self.name,
-            model=self.model,
-            metadata={
-                "base_url": self.base_url
-            }
+            model=self.config.model,
+            metadata={"base_url": self.config.base_url}
         )
 
 
@@ -98,7 +96,7 @@ def get_provider(name):
     if name == "mock":
         return MockProvider()
 
-    if name == "openai_compatible":
-        return OpenAICompatibleProvider()
+    if name in ("openai", "mistral", "ollama", "openai_compatible"):
+        return OpenAICompatibleProvider(provider_name=name)
 
     raise ProviderError(f"Unknown provider: {name}")
