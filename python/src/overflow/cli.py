@@ -4,12 +4,24 @@ import json
 from overflow import __version__
 from overflow.privacy import redact_text
 from overflow.policy import load_policy, validate_policy
+from overflow.security import scan_text as security_scan_text
 
 
 def handle_check(args):
     report = redact_text(args.text)
     print("redacted:", report.output)
     print("counts:", json.dumps(report.counts, indent=2, sort_keys=True))
+
+
+def handle_security(args):
+    report = security_scan_text(args.text)
+
+    print("allowed:", report.allowed)
+    print("reasons:", json.dumps(report.reasons, indent=2, sort_keys=True))
+    print("counts:", json.dumps(report.counts, indent=2, sort_keys=True))
+
+    if not report.allowed:
+        raise SystemExit(1)
 
 
 def handle_policy(args, parser):
@@ -53,6 +65,12 @@ def main():
     )
     check_parser.add_argument("text")
 
+    security_parser = subparsers.add_parser(
+        "security",
+        help="Check text for security risks"
+    )
+    security_parser.add_argument("text")
+
     policy_parser = subparsers.add_parser(
         "policy",
         help="Policy commands"
@@ -75,6 +93,8 @@ def main():
 
     if args.command == "check":
         handle_check(args)
+    elif args.command == "security":
+        handle_security(args)
     elif args.command == "policy":
         handle_policy(args, policy_parser)
     else:
