@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import json
 
 from overflow import __version__
@@ -9,12 +9,10 @@ from overflow.audit import AuditChain, default_audit_path, verify_audit_file
 from overflow.optimizer import optimize_text
 from overflow.pipeline import process_text
 
-
 def handle_check(args):
     report = redact_text(args.text)
     print("redacted:", report.output)
     print("counts:", json.dumps(report.counts, indent=2, sort_keys=True))
-
 
 def handle_security(args):
     report = security_scan_text(args.text)
@@ -24,7 +22,6 @@ def handle_security(args):
     if not report.allowed:
         raise SystemExit(1)
 
-
 def handle_optimize(args):
     report = optimize_text(args.text)
     print("output:", report.output)
@@ -32,10 +29,21 @@ def handle_optimize(args):
     print("optimized_tokens:", report.optimized_tokens)
     print("reduction_percent:", report.reduction_percent)
 
-
 def handle_chat(args):
+    policy = None
+    if getattr(args, "allow_external", False):
+        policy = {
+            "privacy": {"redact_pii": True, "redact_secrets": True},
+            "security": {"block_prompt_injection": True, "block_jailbreak_attempts": True},
+            "routing": {"allow_external_providers": True, "fallback": "deny", "allowed_regions": ["EU"]},
+            "audit": {"enabled": True, "store_raw_prompts": False, "store_raw_responses": False}
+        }
+    elif getattr(args, "policy_file", None):
+        policy = load_policy(args.policy_file)
+
     result = process_text(
         args.text,
+        policy=policy,
         provider_name=args.provider,
         optimize=not args.no_optimize,
         audit_enabled=True
@@ -46,7 +54,6 @@ def handle_chat(args):
         raise SystemExit(1)
     print("response_text:", result.response_text)
     print("provider:", result.provider)
-
 
 def handle_audit(args, parser):
     if args.audit_command == "log":
@@ -72,7 +79,6 @@ def handle_audit(args, parser):
     else:
         parser.print_help()
 
-
 def handle_policy(args, parser):
     if args.policy_command == "validate":
         policy = load_policy(args.path)
@@ -87,7 +93,6 @@ def handle_policy(args, parser):
         print(json.dumps(policy, indent=2, sort_keys=True))
     else:
         parser.print_help()
-
 
 def handle_gateway(args):
     try:
@@ -105,7 +110,6 @@ def handle_gateway(args):
     print(f"API docs: http://{args.host}:{args.port}/docs")
     print(f"Dashboard: http://{args.host}:{args.port}/dashboard")
     uvicorn.run(app, host=args.host, port=args.port)
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -131,6 +135,8 @@ def main():
     chat_p.add_argument("text")
     chat_p.add_argument("--provider", default="mock")
     chat_p.add_argument("--no-optimize", action="store_true")
+    chat_p.add_argument("--allow-external", action="store_true", help="Bypass policy to allow external providers")
+    chat_p.add_argument("--policy-file", help="Path to a JSON policy file")
 
     audit_p = subparsers.add_parser("audit", help="Audit commands")
     audit_sub = audit_p.add_subparsers(dest="audit_command")
@@ -171,7 +177,6 @@ def main():
         handle_gateway(args)
     else:
         parser.print_help()
-
 
 if __name__ == "__main__":
     main()
