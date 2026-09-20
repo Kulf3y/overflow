@@ -7,6 +7,8 @@ from overflow.policy import load_policy, validate_policy
 from overflow.security import scan_text as security_scan_text
 from overflow.audit import AuditChain, default_audit_path, verify_audit_file
 from overflow.gateway import serve as serve_gateway
+from overflow.optimizer import optimize_text
+from overflow.pipeline import process_text
 
 
 def handle_check(args):
@@ -24,6 +26,36 @@ def handle_security(args):
 
     if not report.allowed:
         raise SystemExit(1)
+
+
+def handle_optimize(args):
+    report = optimize_text(args.text)
+
+    print("output:", report.output)
+    print("original_tokens:", report.original_tokens)
+    print("optimized_tokens:", report.optimized_tokens)
+    print("reduction_percent:", report.reduction_percent)
+
+
+def handle_chat(args):
+    result = process_text(
+        args.text,
+        optimize=not args.no_optimize,
+        audit_enabled=True
+    )
+
+    print("allowed:", result.allowed)
+
+    if not result.allowed:
+        print("reasons:", json.dumps(result.reasons, indent=2, sort_keys=True))
+        raise SystemExit(1)
+
+    print("output_text:", result.output_text)
+    print("response_text:", result.response_text)
+    print("privacy_counts:", json.dumps(result.privacy_counts, indent=2, sort_keys=True))
+    print("security_counts:", json.dumps(result.security_counts, indent=2, sort_keys=True))
+    print("optimization:", json.dumps(result.optimization, indent=2, sort_keys=True))
+    print("provider:", result.provider)
 
 
 def handle_audit(args, parser):
@@ -114,6 +146,19 @@ def main():
     )
     security_parser.add_argument("text")
 
+    optimize_parser = subparsers.add_parser(
+        "optimize",
+        help="Optimize text"
+    )
+    optimize_parser.add_argument("text")
+
+    chat_parser = subparsers.add_parser(
+        "chat",
+        help="Run the full Overflow pipeline with a mock provider"
+    )
+    chat_parser.add_argument("text")
+    chat_parser.add_argument("--no-optimize", action="store_true")
+
     audit_parser = subparsers.add_parser(
         "audit",
         help="Audit commands"
@@ -170,6 +215,10 @@ def main():
         handle_check(args)
     elif args.command == "security":
         handle_security(args)
+    elif args.command == "optimize":
+        handle_optimize(args)
+    elif args.command == "chat":
+        handle_chat(args)
     elif args.command == "audit":
         handle_audit(args, audit_parser)
     elif args.command == "policy":

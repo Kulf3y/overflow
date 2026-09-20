@@ -1,6 +1,8 @@
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from overflow.optimizer import optimize_text
+from overflow.pipeline import process_text
 from overflow.policy import validate_policy
 from overflow.privacy import redact_text
 from overflow.security import scan_text
@@ -66,6 +68,61 @@ def route_request(method, path, payload=None):
 
         return 200, {
             "valid": True
+        }
+
+    if method == "POST" and path == "/v1/chat":
+        if not isinstance(payload, dict):
+            return 400, {"error": "payload must be a JSON object"}
+
+        text = payload.get("text")
+
+        if not isinstance(text, str):
+            return 400, {"error": "text must be a string"}
+
+        policy = payload.get("policy")
+        optimize = payload.get("optimize", True)
+
+        result = process_text(
+            text,
+            policy=policy,
+            optimize=bool(optimize),
+            audit_enabled=False
+        )
+
+        if not result.allowed:
+            return 400, {
+                "allowed": False,
+                "reasons": result.reasons,
+                "privacy_counts": result.privacy_counts,
+                "security_counts": result.security_counts
+            }
+
+        return 200, {
+            "allowed": True,
+            "output_text": result.output_text,
+            "response_text": result.response_text,
+            "privacy_counts": result.privacy_counts,
+            "security_counts": result.security_counts,
+            "optimization": result.optimization,
+            "provider": result.provider
+        }
+
+    if method == "POST" and path == "/v1/optimize":
+        if not isinstance(payload, dict):
+            return 400, {"error": "payload must be a JSON object"}
+
+        text = payload.get("text")
+
+        if not isinstance(text, str):
+            return 400, {"error": "text must be a string"}
+
+        report = optimize_text(text)
+
+        return 200, {
+            "output": report.output,
+            "original_tokens": report.original_tokens,
+            "optimized_tokens": report.optimized_tokens,
+            "reduction_percent": report.reduction_percent
         }
 
     return 404, {"error": "not found"}
