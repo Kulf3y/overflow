@@ -20,3 +20,6 @@ rust/overflow-core/target/
 # IDE
 .idea/
 .vscode/
+
+# Local documentation backups
+.doc-backups/
