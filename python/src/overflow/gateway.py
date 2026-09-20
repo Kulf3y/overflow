@@ -1,11 +1,12 @@
+import json
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from overflow.optimizer import optimize_text
-from overflow.pipeline import process_text
+from overflow.pipeline import get_default_cache, process_text
 from overflow.policy import validate_policy
 from overflow.privacy import redact_text
 from overflow.providers import PROVIDER_NAMES
@@ -14,7 +15,7 @@ from overflow.security import scan_text
 app = FastAPI(
     title="Overflow Gateway",
     description="AI governance and optimization middleware",
-    version="0.2.0"
+    version="0.1.0"
 )
 
 
@@ -69,6 +70,11 @@ def providers():
     return {"providers": PROVIDER_NAMES}
 
 
+@app.get("/v1/cache/stats")
+def cache_stats():
+    return get_default_cache().stats()
+
+
 @app.post("/v1/check")
 def check(req: TextRequest):
     report = redact_text(req.text)
@@ -118,8 +124,35 @@ def chat(req: ChatRequest):
         "privacy_counts": result.privacy_counts,
         "security_counts": result.security_counts,
         "optimization": result.optimization,
-        "provider": result.provider
+        "provider": result.provider,
+        "cached": result.cached,
+        "watermarked": result.watermarked
     }
+
+
+@app.post("/v1/chat/stream")
+def chat_stream(req: ChatRequest):
+    result = process_text(
+        req.text,
+        policy=req.policy,
+        optimize=req.optimize,
+        provider_name=req.provider,
+        audit_enabled=False
+    )
+
+    if not result.allowed:
+        return {
+            "allowed": False,
+            "reasons": result.reasons
+        }
+
+    def event_generator():
+        for token in result.response_text.split(" "):
+            payload = json.dumps({"token": token})
+            yield "data: " + payload + "\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 @app.post("/v1/optimize")

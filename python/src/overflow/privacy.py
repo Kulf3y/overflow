@@ -1,7 +1,8 @@
 import re
 from dataclasses import dataclass, field
 
-EMAIL_PATTERN = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+from overflow.native import native_redact_emails
+
 PHONE_PATTERN = re.compile(r"(?<!\d)\+\d[\d\s().-]{7,17}\d(?!\d)")
 IBAN_PATTERN = re.compile(r"\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b")
 
@@ -37,7 +38,12 @@ def redact_text(text, custom_patterns=None):
     counts = {}
     output = text
 
-    output = _apply_pattern(EMAIL_PATTERN, output, "EMAIL", "[EMAIL_REDACTED]", findings, counts)
+    output, email_count = native_redact_emails(output)
+
+    if email_count > 0:
+        counts["EMAIL"] = email_count
+        findings.append(Finding(entity_type="EMAIL", replacement="[EMAIL_REDACTED]"))
+
     output = _apply_pattern(PHONE_PATTERN, output, "PHONE", "[PHONE_REDACTED]", findings, counts)
     output = _apply_pattern(IBAN_PATTERN, output, "IBAN", "[IBAN_REDACTED]", findings, counts)
 

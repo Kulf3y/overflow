@@ -5,6 +5,17 @@ from overflow.policy import validate_policy
 from overflow.privacy import redact_text
 from overflow.providers import ProviderError, get_provider
 from overflow.security import scan_text
+from overflow.transparency import apply_watermark
+
+_default_cache = None
+
+
+def get_default_cache():
+    global _default_cache
+    if _default_cache is None:
+        from overflow.cache import SemanticCache
+        _default_cache = SemanticCache()
+    return _default_cache
 
 
 @dataclass
@@ -17,17 +28,16 @@ class PipelineResult:
     security_counts: dict[str, int] = field(default_factory=dict)
     optimization: dict = field(default_factory=dict)
     provider: str = "none"
+    cached: bool = False
+    watermarked: bool = False
 
 
 def _external_provider_blocked(policy):
     if not isinstance(policy, dict):
         return True
-
     routing = policy.get("routing")
-
     if not isinstance(routing, dict):
         return True
-
     return routing.get("allow_external_providers", False) is not True
 
 
@@ -39,7 +49,10 @@ def process_text(
     audit_enabled=False,
     audit_path=None,
     provider_name="mock",
-    provider=None
+    provider=None,
+    cache_enabled=True,
+    watermark_enabled=True,
+    cache=None
 ):
     reasons = []
 
@@ -51,17 +64,14 @@ def process_text(
 
     if policy is not None:
         policy_errors = validate_policy(policy)
-
         if policy_errors:
             reasons.append("Policy validation failed.")
 
     resolved_provider_name = provider_name
-
     if provider is not None:
         resolved_provider_name = getattr(provider, "name", provider_name)
 
     is_external_provider = resolved_provider_name != "mock"
-
     if is_external_provider and _external_provider_blocked(policy):
         reasons.append("External provider blocked by policy.")
 
@@ -84,12 +94,47 @@ def process_text(
     if optimize:
         optimization_report = optimize_text(safe_text)
         safe_text = optimization_report.output
-
         optimization_data = {
             "original_tokens": optimization_report.original_tokens,
             "optimized_tokens": optimization_report.optimized_tokens,
             "reduction_percent": optimization_report.reduction_percent
         }
+
+    active_cache = cache
+    if cache_enabled and active_cache is None:
+        active_cache = get_default_cache()
+
+    if cache_enabled and active_cache is not None:
+        hit = active_cache.get(safe_text, provider=resolved_provider_name)
+
+        if hit is not None:
+            response_text = hit["response"]
+            if watermark_enabled:
+                response_text = apply_watermark(response_text)
+
+            if audit_enabled:
+                from overflow.audit import AuditChain
+                chain = AuditChain(audit_path)
+                chain.log_event(
+                    "pipeline.cache_hit",
+                    metadata={
+                        "provider": hit["provider"],
+                        "similarity": hit["similarity"]
+                    }
+                )
+
+            return PipelineResult(
+                allowed=True,
+                output_text=safe_text,
+                response_text=response_text,
+                reasons=[],
+                privacy_counts=privacy_report.counts,
+                security_counts=security_report.counts,
+                optimization=optimization_data,
+                provider="cache",
+                cached=True,
+                watermarked=watermark_enabled
+            )
 
     if provider is None:
         try:
@@ -120,11 +165,19 @@ def process_text(
             provider=resolved_provider_name
         )
 
+    if cache_enabled and active_cache is not None:
+        active_cache.put(safe_text, provider_result.text, provider_result.provider)
+
+    response_text = provider_result.text
+    watermarked = False
+
+    if watermark_enabled:
+        response_text = apply_watermark(response_text)
+        watermarked = True
+
     if audit_enabled:
         from overflow.audit import AuditChain
-
         chain = AuditChain(audit_path)
-
         chain.log_event(
             "pipeline.request",
             metadata={
@@ -132,17 +185,20 @@ def process_text(
                 "provider": provider_result.provider,
                 "privacy_counts": privacy_report.counts,
                 "security_counts": security_report.counts,
-                "optimized": optimize
+                "optimized": optimize,
+                "watermarked": watermarked
             }
         )
 
     return PipelineResult(
         allowed=True,
         output_text=safe_text,
-        response_text=provider_result.text,
+        response_text=response_text,
         reasons=[],
         privacy_counts=privacy_report.counts,
         security_counts=security_report.counts,
         optimization=optimization_data,
-        provider=provider_result.provider
+        provider=provider_result.provider,
+        cached=False,
+        watermarked=watermarked
     )
